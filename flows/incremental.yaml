@@ -1,0 +1,143 @@
+# This flow copy one object from src_bucket to dest_bucket
+
+# Input:
+# {
+#   "src_bucket": "a",
+#   "dest_bucket": "b",
+#   "key": "c",
+#   "total_size": number
+# }
+
+# FDL reference: https://help.aliyun.com/document_detail/122492.html
+# More examples: http://fnf.byexamples.org
+version: v1beta1
+type: flow
+steps:
+  # Set some constant values which will be used by following steps.
+  - type: pass
+    name: init
+    outputMappings:
+      - target: small_threshold
+        source: 52428800 # 50MB
+      - target: large_threshold
+        source: 1073741824 # 1GB
+      - target: part_size
+        source: 52428800 # 50MB
+  - type: choice
+    name: copyBySize
+    choices:
+      - condition: $.total_size <= $.small_threshold
+        steps:
+          - type: task
+            name: copyObject
+            resourceArn: acs:fc:::services/ossCopy/functions/copyObject
+            retry:
+              - errors:
+                - FC.ResourceThrottled
+                - FC.ResourceExhausted
+                - FC.InternalServerError
+                - FC.Unknown
+                - FnF.TaskTimeout
+                intervalSeconds: 3
+                maxAttempts: 10
+                multiplier: 1.5
+      - condition: $.total_size <= $.large_threshold
+        steps:
+          - type: task
+            name: copyObjectWithMultipartUpload
+            resourceArn: acs:fc:::services/ossCopy/functions/copyObjectWithMultipartUpload
+            retry:
+              - errors:
+                - FC.ResourceThrottled
+                - FC.ResourceExhausted
+                - FC.InternalServerError
+                - FC.Unknown
+                - FnF.TaskTimeout
+                intervalSeconds: 3
+                maxAttempts: 10
+                multiplier: 1.5
+    default:
+      steps:
+        - type: task
+          name: initMultipartUpload
+          resourceArn: acs:fc:::services/ossCopy/functions/initMultipartUpload
+          inputMappings:
+            - target: src_bucket
+              source: $input.src_bucket
+            - target: dest_bucket
+              source: $input.dest_bucket
+            - target: key
+              source: $input.key
+            - target: part_size
+              source: $input.part_size
+            - target: total_size
+              source: $input.total_size
+          retry:
+            - errors:
+              - FC.ResourceThrottled
+              - FC.ResourceExhausted
+              - FC.InternalServerError
+              - FC.Unknown
+              - FnF.TaskTimeout
+              intervalSeconds: 3
+              maxAttempts: 10
+              multiplier: 1.5
+        - type: foreach
+          name: uploadParts
+          iterationMapping:
+            collection: $.part_no_list
+            item: part_no
+          steps:
+            - type: task
+              name: uploadPart
+              resourceArn: acs:fc:::services/ossCopy/functions/uploadPart
+              retry:
+                - errors:
+                  - FC.ResourceThrottled
+                  - FC.ResourceExhausted
+                  - FC.InternalServerError
+                  - FC.Unknown
+                  - FnF.TaskTimeout
+                  intervalSeconds: 3
+                  maxAttempts: 10
+                  multiplier: 1.5
+          inputMappings:
+            - target: src_bucket
+              source: $input.src_bucket
+            - target: dest_bucket
+              source: $input.dest_bucket
+            - target: key
+              source: $input.key
+            - target: part_size
+              source: $input.part_size
+            - target: total_size
+              source: $input.total_size
+            - target: part_no_list
+              source: $local.part_no_list
+            - target: upload_id
+              source: $local.upload_id
+          outputMappings:
+            - target: parts
+              source: $local
+        - type: task
+          name: completeMultipartUpload
+          resourceArn: acs:fc:::services/ossCopy/functions/completeMultipartUpload
+          inputMappings:
+            - target: dest_bucket
+              source: $input.dest_bucket
+            - target: key
+              source: $input.key
+            - target: upload_id
+              source: $local.upload_id
+            - target: parts
+              source: $local.parts
+          retry:
+            - errors:
+              - FC.ResourceThrottled
+              - FC.ResourceExhausted
+              - FC.InternalServerError
+              - FC.Unknown
+              - FnF.TaskTimeout
+              intervalSeconds: 3
+              maxAttempts: 10
+              multiplier: 1.5

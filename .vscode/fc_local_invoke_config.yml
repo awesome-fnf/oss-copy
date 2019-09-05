@@ -1,0 +1,40 @@
+templates:
+  template.yml:
+    fnf-samples:
+      listObjects:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/listObjects/event.evt
+      initMultipartUpload:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/initMultipartUpload/event.evt
+    ossCopy:
+      copyObject:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/copyObject/event.evt
+      copyObjects:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/copyObjects/event.evt
+      listObjects:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/listObjects/event.evt
+      startCopyWithFnF:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/startCopyWithFnF/event.evt

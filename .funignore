@@ -1,0 +1,4 @@
+.env
+template.yml
+.funignore
+functions/**/event.dat

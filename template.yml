@@ -1,0 +1,126 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  ossCopy:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: oss-backup
+      Policies:
+        - Version: '1'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'oss:ListObjects'
+                - 'oss:GetObject'
+                - 'oss:PutObject'
+              Resource: '*'
+        - Version: '1'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'fnf:StartExecution'
+              Resource: '*'
+      LogConfig:
+        Project: test-1585714933323637-hz
+        Logstore: test
+    listObjects:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 128
+        CodeUri: functions/listObjects
+        EnvironmentVariables:
+          SRC_OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+    initMultipartUpload:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 512
+        CodeUri: functions/initMultipartUpload
+        EnvironmentVariables:
+          SRC_OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+          DEST_OSS_ENDPOINT: 'https://oss-accelerate.aliyuncs.com'
+    uploadPart:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 600
+        MemorySize: 512
+        CodeUri: functions/uploadPart
+        EnvironmentVariables:
+          SRC_OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+          DEST_OSS_ENDPOINT: 'https://oss-accelerate.aliyuncs.com'
+    completeMultipartUpload:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 512
+        CodeUri: functions/completeMultipartUpload
+        EnvironmentVariables:
+          SRC_OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+          DEST_OSS_ENDPOINT: 'https://oss-accelerate.aliyuncs.com'
+    copyObject:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 600
+        MemorySize: 512
+        CodeUri: functions/copyObject
+        EnvironmentVariables:
+          SRC_OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+          DEST_OSS_ENDPOINT: 'https://oss-accelerate.aliyuncs.com'
+    copyObjectWithMultipartUpload:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 600
+        MemorySize: 3072
+        CodeUri: functions/copyObjectWithMultipartUpload
+        EnvironmentVariables:
+          SRC_OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+          DEST_OSS_ENDPOINT: 'https://oss-accelerate.aliyuncs.com'
+    copyObjects:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 600
+        MemorySize: 512
+        CodeUri: functions/copyObjects
+        EnvironmentVariables:
+          SRC_OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+          DEST_OSS_ENDPOINT: 'https://oss-accelerate.aliyuncs.com'
+    startCopyWithFnF:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 600
+        MemorySize: 512
+        CodeUri: functions/startCopyWithFnF
+        EnvironmentVariables:
+            DEST_BUCKET: svsvsv
+            FLOW_NAME: oss-incremental-copy
+      Events:
+        onObjectCreated:
+          Type: OSS
+          Properties:
+            BucketName: hangzhouhangzhou
+            Events:
+              - oss:ObjectCreated:PutObject
+              - oss:ObjectCreated:PostObject
+              - oss:ObjectCreated:CompleteMultipartUpload
+              - oss:ObjectCreated:AppendObject
+            Filter: 
+              Key:
+                Prefix: tbc/
+                Suffix: ""
