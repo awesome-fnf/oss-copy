@@ -15,6 +15,8 @@
 * 同区域复制延迟低，文件大小阈值可以适当调大。
 * 跨区域复制延迟高，文件大小阈值可以适当调小。
 
+![flow](images/incremental.png)
+
 **相关配置**
 * 源 Bucket `src_bucket` 由 Funcraft template 配置。
 * OSS 触发器配置由 Funcraft template 配置。
@@ -33,7 +35,7 @@
 
     ```aliyun fnf CreateFlow --Description "incremental copy" --Type FDL --Name oss-incremental-copy --Definition "$(<./flows/incremental.yaml)" --RoleArn acs:ram::account-id:role/fnf```
 
-3. 测试复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会处理 `hangzhouhangzhou` 的所有文件。
+3. 测试复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 `tbc/Archive.zip` 复制到 `svsvsv` bucket。
 
     ```aliyun fnf StartExecution --FlowName oss-incremental-copy --Input '{"src_bucket": "hangzhouhangzhou", "dest_bucket": "svsvsv", "key": "tbc/Archive.zip", "total_size": 936771720}' --ExecutionName run1```
 
