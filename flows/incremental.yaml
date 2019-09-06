@@ -20,7 +20,7 @@ steps:
       - target: small_threshold
         source: 52428800 # 50MB
       - target: large_threshold
-        source: 1073741824 # 1GB
+        source: 536870912 # 0.5GB
       - target: part_size
         source: 52428800 # 50MB
   - type: choice
@@ -72,6 +72,8 @@ steps:
               source: $input.part_size
             - target: total_size
               source: $input.total_size
+            - target: large_threshold
+              source: $input.large_threshold
           retry:
             - errors:
               - FC.ResourceThrottled
@@ -85,12 +87,12 @@ steps:
         - type: foreach
           name: uploadParts
           iterationMapping:
-            collection: $.part_no_list
-            item: part_no
+            collection: $.groups
+            item: group_id
           steps:
             - type: task
               name: uploadPart
-              resourceArn: acs:fc:::services/ossCopy/functions/uploadPart
+              resourceArn: acs:fc:::services/ossCopy/functions/uploadParts
               retry:
                 - errors:
                   - FC.ResourceThrottled
@@ -112,13 +114,17 @@ steps:
               source: $input.part_size
             - target: total_size
               source: $input.total_size
-            - target: part_no_list
-              source: $local.part_no_list
+            - target: groups
+              source: $local.groups
             - target: upload_id
               source: $local.upload_id
+            - target: total_num_of_parts
+              source: $local.total_num_of_parts
+            - target: num_of_parts_per_group
+              source: $local.num_of_parts_per_group
           outputMappings:
             - target: parts
-              source: $local
+              source: $local[*].parts[*]
         - type: task
           name: completeMultipartUpload
           resourceArn: acs:fc:::services/ossCopy/functions/completeMultipartUpload

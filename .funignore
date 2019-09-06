@@ -2,3 +2,6 @@
 template.yml
 .funignore
 functions/**/event.dat
+functions/**/test_*.py
+functions/**/__pycache__
+functions/**/*.pyc

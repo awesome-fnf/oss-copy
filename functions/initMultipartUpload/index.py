@@ -11,8 +11,12 @@ import json
 #   "dest_bucket": "",
 #   "key": "",
 #   "part_size": number,
-#   "total_size": number
+#   "total_size": number,
+#   "large_threshold": number
 # }
+
+FNF_PARALLEL_LIMIT = 100
+
 
 def handler(event, context):
   logger = logging.getLogger()
@@ -21,17 +25,22 @@ def handler(event, context):
   src_client = get_oss_client(context, os.environ['SRC_OSS_ENDPOINT'], evt["src_bucket"])
   dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ['DEST_OSS_ENDPOINT'], evt["dest_bucket"])
   
-  # Decide the number of parts
-  part_size = determine_part_size(evt["total_size"], preferred_size=evt["part_size"])
-  num_of_parts = (evt["total_size"] + part_size - 1) // part_size
-
+  # Group parts by size and each group will be handled by one function execution.
+  total_num_of_parts, num_of_groups, num_of_parts_per_group = calc_groups(evt["total_size"], evt["part_size"], evt["large_threshold"])
   upload_id = dest_client.init_multipart_upload(evt["key"]).upload_id
 
   return {
       "upload_id": upload_id,
-      "part_no_list": list(range(1,num_of_parts+1))
+      "total_num_of_parts": total_num_of_parts,
+      "groups": list(range(num_of_groups)),
+      "num_of_parts_per_group": num_of_parts_per_group
       }
 
+def calc_groups(total_size, part_size, max_total_part_size):
+  num_of_parts_per_group = min(max_total_part_size // part_size, FNF_PARALLEL_LIMIT - 20)
+  total_num_of_parts = (total_size + part_size - 1) // part_size
+  num_of_groups = (total_num_of_parts + num_of_parts_per_group - 1) // num_of_parts_per_group
+  return total_num_of_parts, num_of_groups, num_of_parts_per_group
 
 def get_oss_client(context, endpoint, bucket):
   creds = context.credentials

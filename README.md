@@ -7,9 +7,12 @@
 
 ### 增量数据复制
 增量数据复制依赖于函数计算的 OSS 触发器，当有新文件上传或者文件更新时，OSS 会触发函数 `startCopyWithFnF`，该函数启动一个 FnF 流程，逻辑如下：
-* 如果要复制的文件比较小（比如 50MB 以内），会使用一个函数流式下载文件并上传文件到目标 Bucket。
-* 如果要复制的文件比较大（比如 50MB 到 1GB），会使用一个函数多线程分片下载文件并分片上传到目标 Bucket。
-* 如果要复制的文件很大（比如 1GB 以上），会使用三个函数完成复制任务。第一个函数开始分片上传，第二个函数的多个实例分片下载并分片上传到目标 Bucket，第三个函数完成分片上传。
+* 如果要复制的文件比较小（比如 50MB 以内），会使用函数 `copyObject` 流式下载文件并上传文件到目标 Bucket。
+* 如果要复制的文件比较大（比如 50MB 到 1GB），会使用函数 `copyObjectWithMultipartUpload` 多线程分片下载文件并分片上传到目标 Bucket。
+* 如果要复制的文件很大（比如 1GB 以上），会使用三个函数完成复制任务。
+    * 第一个函数 `initMultipartUpload` 开始分片上传，并将文件分成 group，每个 group 包含多个分片。
+    * 第二个函数 `uploadParts` 处理一个 group 里的多个分片，采用多线程复制分片。该函数的多个实例会并行处理所有 group。
+    * 第三个函数 `completeMultipartUpload` 完成分片上传。
 
 其中文件大小阈值可以根据具体情况配置，原则是函数执行不超过最长执行时间限制（10分钟）。
 * 同区域复制延迟低，文件大小阈值可以适当调大。
@@ -23,7 +26,7 @@
 * 目的 Bucket `dst_bucket` 由 `startCopyWithFnF` 函数的环境变量配置
 * 源 OSS endpoint `src_bucket_endpoint` 和目的 OSS endpoint `dst_bucket_endpoint` 通过函数环境变量配置
 * 分片大小 `part_size` 在 FnF 流程定义中配置
-* 文件大小阈值 `small_threshold` `large_threshol` 在 FnF 流程定义中配置
+* 文件大小阈值 `small_threshold` `large_threshold` 在 FnF 流程定义中配置
 
 **使用步骤**
 

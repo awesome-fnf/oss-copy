@@ -38,3 +38,15 @@ templates:
           default_evt:
             type: file
             value: functions/startCopyWithFnF/event.evt
+      initMultipartUpload:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/initMultipartUpload/event.evt
+      uploadParts:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/uploadParts/event.evt

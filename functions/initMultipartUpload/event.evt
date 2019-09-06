@@ -2,5 +2,6 @@
     "src_bucket": "hangzhouhangzhou",
     "dest_bucket": "hangzhouhangzhou2",
     "key": "BhxWutnCEAAtEQ6.jpeg",
-    "part_size": 102400
+    "part_size": 52428800,
+    "total_size": 1936771720
 }
