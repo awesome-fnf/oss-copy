@@ -47,10 +47,33 @@
     ```ossutil -e http://oss-cn-hangzhou.aliyuncs.com -i ak -k secret  cp ~/Downloads/testfile oss://hangzhouhangzhou/tbc/```
 
 ### 存量数据复制
+存量数据复制流程如下：
+`listObjects` 函数通过 OSS ListObjects API 构造文件组，按照文件大小将文件分成 3 组。
+* 第一组是小文件。`copyObjects` 函数负责处理多个小文件。每次函数执行处理的所有小文件大小可配置。
+* 第二组是大文件。`copyObjectWithMultipartUpload` 函数负责处理大文件。
+* 第三组是超大文件。`initMultipartUpload`，`uploadParts`，`completeMultipartUpload` 函数负责处理超大文件。
+
+![flow](images/incremental.png)
+
+**使用步骤**
+
+1. 使用[Funcraft](https://help.aliyun.com/document_detail/64204.html)部署函数
+
+    ```fun deploy -t template.yml```
+
+2. 使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 创建流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124155.html)。流程定义使用[historical.yaml](./flows/historical.yaml)。
+
+    ```aliyun fnf CreateFlow --Description "historical copy" --Type FDL --Name oss-historical-copy --Definition "$(<./flows/historical.yaml)" --RoleArn acs:ram::account-id:role/fnf```
+
+3. 测试复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 所有文件复制到 `svsvsv` bucket。
+
+    ```aliyun fnf StartExecution --FlowName oss-historical-copy --Input '{"src_bucket": "hangzhouhangzhou", "dest_bucket": "svsvsv", "prefix": ""}' --ExecutionName run1```
 
 ## 优势
 * 支持任意大小文件的复制。
 * 可靠的复制：依赖于函数工作流的重试功能。
+
+
 
 ## 扩展场景
 * 将文件复制到多个区域：只需要修改流程定义添加一个 `foreach` 步骤，对每个区域执行复制逻辑。

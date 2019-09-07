@@ -85,13 +85,13 @@ steps:
               maxAttempts: 10
               multiplier: 1.5
         - type: foreach
-          name: uploadParts
+          name: uploadGroups
           iterationMapping:
             collection: $.groups
             item: group_id
           steps:
             - type: task
-              name: uploadPart
+              name: uploadGroup
               resourceArn: acs:fc:::services/ossCopy/functions/uploadParts
               retry:
                 - errors:

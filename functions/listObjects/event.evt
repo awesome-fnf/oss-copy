@@ -2,5 +2,8 @@
     "bucket": "hangzhouhangzhou",
     "prefix": "",
     "marker": "",
-    "delimiter": "/"
+    "delimiter": "",
+    "large_threshold": 536870912,
+    "small_threshold": 1048576,
+    "max_group_size": 50
 }

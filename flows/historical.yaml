@@ -1,0 +1,216 @@
+# This flow lists objects from src_bucket and copies each object to dest_bucket
+# Input:
+# {
+#   "src_bucket": "",
+#   "dest_bucket": "",
+#   "prefix": ""
+# }
+
+# FDL reference: https://help.aliyun.com/document_detail/122492.html
+# More examples: http://fnf.byexamples.org
+version: v1beta1
+type: flow
+steps:
+  - type: pass
+    name: init
+    outputMappings:
+      - target: marker
+        source: ""
+      - target: small_threshold
+        source: 52428800 # 50MB
+      - target: large_threshold
+        source: 536870912 # 0.5GB
+      - target: max_group_size
+        source: 50
+      - target: part_size
+        source: 52428800 # 50MB
+  - type: task
+    name: listObjects
+    resourceArn: acs:fc:::services/ossCopy/functions/listObjects
+    inputMappings:
+      - target: bucket
+        source: $input.src_bucket
+      - target: marker
+        source: $local.marker
+      - target: prefix
+        source: $input.prefix
+      - target: delimiter
+        source: /
+      - target: small_threshold
+        source: $local.small_threshold
+      - target: large_threshold
+        source: $local.large_threshold
+      - target: max_group_size
+        source: $local.max_group_size
+    retry:
+      - errors:
+        # Retriable errors
+        - FC.ResourceThrottled
+        - FC.ResourceExhausted
+        - FC.InternalServerError
+        - FC.Unknown
+        - FnF.TaskTimeout
+        intervalSeconds: 3
+        maxAttempts: 10
+        multiplier: 1.5
+  - type: foreach
+    name: copySmallObjects
+    iterationMapping:
+      collection: $.small
+      item: keys
+    steps:
+      - type: task
+        name: copyObjects
+        resourceArn: acs:fc:::services/ossCopy/functions/copyObjects
+        inputMappings:
+          - target: src_bucket
+            source: $input.src_bucket
+          - target: dest_bucket
+            source: $input.dest_bucket
+          - target: keys
+            source: $input.keys
+        retry:
+          - errors:
+            - FC.ResourceThrottled
+            - FC.ResourceExhausted
+            - FC.InternalServerError
+            - FC.Unknown
+            - FnF.TaskTimeout
+            intervalSeconds: 3
+            maxAttempts: 10
+            multiplier: 1.5
+  - type: foreach
+    name: copyLargeObjects
+    iterationMapping:
+      collection: $.large
+      item: key_info
+    steps:
+      - type: task
+        name: copyObjectWithMultipartUpload
+        resourceArn: acs:fc:::services/ossCopy/functions/copyObjectWithMultipartUpload
+        inputMappings:
+          - target: src_bucket
+            source: $input.src_bucket
+          - target: dest_bucket
+            source: $input.dest_bucket
+          - target: key
+            source: $input.key_info[0]
+          - target: part_size
+            source: $input.part_size
+          - target: total_size
+            source: $input.key_info[1]
+        retry:
+          - errors:
+            - FC.ResourceThrottled
+            - FC.ResourceExhausted
+            - FC.InternalServerError
+            - FC.Unknown
+            - FnF.TaskTimeout
+            intervalSeconds: 3
+            maxAttempts: 10
+            multiplier: 1.5
+  - type: foreach
+    name: copyXlargeObjects
+    iterationMapping:
+      collection: $.xlarge
+      item: key_info
+    steps:
+      - type: task
+        name: initMultipartUpload
+        resourceArn: acs:fc:::services/ossCopy/functions/initMultipartUpload
+        inputMappings:
+          - target: src_bucket
+            source: $input.src_bucket
+          - target: dest_bucket
+            source: $input.dest_bucket
+          - target: key
+            source: $input.key_info[0]
+          - target: part_size
+            source: $input.part_size
+          - target: total_size
+            source: $input.key_info[1]
+          - target: large_threshold
+            source: $input.large_threshold
+        retry:
+          - errors:
+            - FC.ResourceThrottled
+            - FC.ResourceExhausted
+            - FC.InternalServerError
+            - FC.Unknown
+            - FnF.TaskTimeout
+            intervalSeconds: 3
+            maxAttempts: 10
+            multiplier: 1.5
+      - type: foreach
+        name: uploadGroups
+        iterationMapping:
+          collection: $.groups
+          item: group_id
+        steps:
+          - type: task
+            name: uploadGroup
+            resourceArn: acs:fc:::services/ossCopy/functions/uploadParts
+            retry:
+              - errors:
+                - FC.ResourceThrottled
+                - FC.ResourceExhausted
+                - FC.InternalServerError
+                - FC.Unknown
+                - FnF.TaskTimeout
+                intervalSeconds: 3
+                maxAttempts: 10
+                multiplier: 1.5
+        inputMappings:
+          - target: src_bucket
+            source: $input.src_bucket
+          - target: dest_bucket
+            source: $input.dest_bucket
+          - target: key
+            source: $input.key_info[0]
+          - target: part_size
+            source: $input.part_size
+          - target: total_size
+            source: $input.key_info[1]
+          - target: groups
+            source: $local.groups
+          - target: upload_id
+            source: $local.upload_id
+          - target: total_num_of_parts
+            source: $local.total_num_of_parts
+          - target: num_of_parts_per_group
+            source: $local.num_of_parts_per_group
+        outputMappings:
+          - target: parts
+            source: $local[*].parts[*]
+      - type: task
+        name: completeMultipartUpload
+        resourceArn: acs:fc:::services/ossCopy/functions/completeMultipartUpload
+        inputMappings:
+          - target: dest_bucket
+            source: $input.dest_bucket
+          - target: key
+            source: $input.key_info[0]
+          - target: upload_id
+            source: $local.upload_id
+          - target: parts
+            source: $local.parts
+        retry:
+          - errors:
+            - FC.ResourceThrottled
+            - FC.ResourceExhausted
+            - FC.InternalServerError
+            - FC.Unknown
+            - FnF.TaskTimeout
+            intervalSeconds: 3
+            maxAttempts: 10
+            multiplier: 1.5
+  - type: choice
+    name: hasMoreObjects
+    choices:
+      # has_more is from listObjects output
+      - condition: $.has_more
+        goto: listObjects
+    default:
+      goto: final
+  - type: succeed
+    name: final
