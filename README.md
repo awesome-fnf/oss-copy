@@ -53,7 +53,7 @@
 * 第二组是大文件。`copyObjectWithMultipartUpload` 函数负责处理大文件。
 * 第三组是超大文件。`initMultipartUpload`，`uploadParts`，`completeMultipartUpload` 函数负责处理超大文件。
 
-![flow](images/incremental.png)
+![flow](images/historical.png)
 
 **使用步骤**
 
