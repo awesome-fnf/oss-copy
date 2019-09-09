@@ -12,7 +12,8 @@ def handler(event, context):
 
   has_more = False
   marker = evt["marker"]
-  max_group_size = evt.get("max_group_size", 50)
+  group_threshold = evt.get("group_threshold", 50)
+  total_group_count = evt.get("total_group_count", 0)
   large_threshold = evt.get("large_threshold")
   small_threshold = evt.get("small_threshold")
   small_group_total = 0
@@ -32,7 +33,7 @@ def handler(event, context):
     for i in range(0, len(result.object_list)):
       obj = result.object_list[i]
       logger.info("key: %s, size: %s, group size: %d", obj.key, obj.size, current_group_size)
-      if (current_group_size*large_threshold + small_group_total + obj.size + large_threshold - 1) // large_threshold > max_group_size:
+      if (current_group_size*large_threshold + small_group_total + obj.size + large_threshold - 1) // large_threshold > group_threshold:
         # Leave early and override has_more and marker
         has_more = True
         leave_early = True
@@ -63,12 +64,15 @@ def handler(event, context):
   if len(small_group) > 0:
     small.append(small_group)
 
+  total_group_count += (current_group_size*large_threshold + small_group_total + large_threshold - 1) // large_threshold
+
   return {
     "small": small, # [["key1","key2","key3"],["key4","key5"]]
     "large": large, # [["key9",size],["key11",size]]
     "xlarge": xlarge, # [["key6",size],["key7",size]]
     "has_more": has_more,
-    "marker": marker
+    "marker": marker,
+    "total_group_count": total_group_count
   }
 
 def get_oss_client(context, endpoint, bucket):

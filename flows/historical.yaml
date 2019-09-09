@@ -3,7 +3,8 @@
 # {
 #   "src_bucket": "",
 #   "dest_bucket": "",
-#   "prefix": ""
+#   "prefix": "",
+#   "marker": ""
 # }
 
 # FDL reference: https://help.aliyun.com/document_detail/122492.html
@@ -14,16 +15,26 @@ steps:
   - type: pass
     name: init
     outputMappings:
-      - target: marker
-        source: ""
+      # Files smaller than small_threshold are processed together.
+      # Files larger than small_threshold are broken into multiple parts.
       - target: small_threshold
         source: 52428800 # 50MB
+      # Files larger than large_threshold are processed in parallel with multiple function instances.
+      # Each function instance processes up to large_threshold amount of files.
       - target: large_threshold
         source: 536870912 # 0.5GB
-      - target: max_group_size
+      # The listObjects returns up to group_threshold groups
+      - target: group_threshold
         source: 50
+      # One execution exits after processing total_group_threshold groups
+      # It starts a new execution if there are more objects to be processed
+      - target: total_group_threshold
+        source: 500
+      # A large file is broken into small parts which are processed in parallel.
       - target: part_size
         source: 52428800 # 50MB
+      - target: marker
+        source: $input.marker
   - type: task
     name: listObjects
     resourceArn: acs:fc:::services/ossCopy/functions/listObjects
@@ -40,8 +51,8 @@ steps:
         source: $local.small_threshold
       - target: large_threshold
         source: $local.large_threshold
-      - target: max_group_size
-        source: $local.max_group_size
+      - target: group_threshold
+        source: $local.group_threshold
     retry:
       - errors:
         # Retriable errors
@@ -207,7 +218,31 @@ steps:
   - type: choice
     name: hasMoreObjects
     choices:
-      # has_more is from listObjects output
+      - condition: $.has_more && $.total_group_count >= $.total_group_threshold
+        steps:
+          - type: task
+            name: startMultipleCopy
+            resourceArn: acs:fc:::services/ossCopy/functions/startMultipleCopy
+            inputMappings:
+              - target: src_bucket
+                source: $input.src_bucket
+              - target: dest_bucket
+                source: $input.dest_bucket
+              - target: prefix
+                source: $input.prefix
+              - target: marker
+                source: $input.marker
+            retry:
+              - errors:
+                # Retriable errors
+                - FC.ResourceThrottled
+                - FC.ResourceExhausted
+                - FC.InternalServerError
+                - FC.Unknown
+                - FnF.TaskTimeout
+                intervalSeconds: 3
+                maxAttempts: 10
+                multiplier: 1.5
       - condition: $.has_more
         goto: listObjects
     default:
