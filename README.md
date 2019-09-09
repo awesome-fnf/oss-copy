@@ -67,7 +67,7 @@
 
 3. 测试复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 所有文件复制到 `svsvsv` bucket。
 
-    ```aliyun fnf StartExecution --FlowName oss-historical-copy --Input '{"src_bucket": "hangzhouhangzhou", "dest_bucket": "svsvsv", "prefix": ""}' --ExecutionName run1```
+    ```aliyun fnf StartExecution --FlowName oss-historical-copy --Input '{"src_bucket": "hangzhouhangzhou", "dest_bucket": "svsvsv", "prefix": "", "marker": ""}' --ExecutionName run1```
 
 ## 优势
 * 支持任意大小文件的复制。
