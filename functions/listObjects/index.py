@@ -14,13 +14,13 @@ def handler(event, context):
   marker = evt["marker"]
   group_threshold = evt.get("group_threshold", 50)
   total_group_count = evt.get("total_group_count", 0)
-  large_threshold = evt.get("large_threshold")
-  small_threshold = evt.get("small_threshold")
+  medium_file_limit = evt.get("medium_file_limit")
+  small_file_limit = evt.get("small_file_limit")
   small_group_total = 0
-  small_group = [] # The total size of small files is less than large_threshold
+  small_group = [] # The total size of small files is less than medium_file_limit
   small = [] # An array of small_group
+  medium = []
   large = []
-  xlarge = []
   current_group_size = 0
   leave_early = False
 
@@ -29,19 +29,19 @@ def handler(event, context):
     logger.info("Found %d objects", len(result.object_list))
     marker = result.next_marker
     has_more = result.is_truncated
-    # A function can process amount of files up to large_threshold
+    # A function can process amount of files up to medium_file_limit
     for i in range(0, len(result.object_list)):
       obj = result.object_list[i]
       logger.info("key: %s, size: %s, group size: %d", obj.key, obj.size, current_group_size)
-      if (current_group_size*large_threshold + small_group_total + obj.size + large_threshold - 1) // large_threshold > group_threshold:
+      if (current_group_size*medium_file_limit + small_group_total + obj.size + medium_file_limit - 1) // medium_file_limit > group_threshold:
         # Leave early and override has_more and marker
         has_more = True
         leave_early = True
         marker = result.object_list[i].key
         break
-      # Group small files as many as possible but their total size should not exceed large_threshold
-      if obj.size <= small_threshold:
-        if obj.size + small_group_total <= large_threshold:
+      # Group small files as many as possible but their total size should not exceed medium_file_limit
+      if obj.size <= small_file_limit:
+        if obj.size + small_group_total <= medium_file_limit:
           small_group_total += obj.size
           small_group.append(obj.key)
         else:
@@ -50,13 +50,13 @@ def handler(event, context):
           small_group = []
           small_group.append(obj.key)
           current_group_size += 1
-      elif obj.size <= large_threshold:
-        large.append([obj.key, obj.size])
+      elif obj.size <= medium_file_limit:
+        medium.append([obj.key, obj.size])
         current_group_size += 1
       else:
-        xlarge.append([obj.key, obj.size])
-        # The xlarge file will be divided into small groups and each group size is up to large_threshold
-        current_group_size += (obj.size + large_threshold - 1) // large_threshold
+        large.append([obj.key, obj.size])
+        # The large file will be divided into small groups and each group size is up to medium_file_limit
+        current_group_size += (obj.size + medium_file_limit - 1) // medium_file_limit
 
     if not has_more or leave_early:
       break
@@ -64,12 +64,12 @@ def handler(event, context):
   if len(small_group) > 0:
     small.append(small_group)
 
-  total_group_count += (current_group_size*large_threshold + small_group_total + large_threshold - 1) // large_threshold
+  total_group_count += (current_group_size*medium_file_limit + small_group_total + medium_file_limit - 1) // medium_file_limit
 
   return {
     "small": small, # [["key1","key2","key3"],["key4","key5"]]
-    "large": large, # [["key9",size],["key11",size]]
-    "xlarge": xlarge, # [["key6",size],["key7",size]]
+    "medium": medium, # [["key9",size],["key11",size]]
+    "large": large, # [["key6",size],["key7",size]]
     "has_more": has_more,
     "marker": marker,
     "total_group_count": total_group_count

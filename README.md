@@ -26,7 +26,7 @@
 * 目的 Bucket `dst_bucket` 由 `startCopyWithFnF` 函数的环境变量配置
 * 源 OSS endpoint `src_bucket_endpoint` 和目的 OSS endpoint `dst_bucket_endpoint` 通过函数环境变量配置
 * 分片大小 `part_size` 在 FnF 流程定义中配置
-* 文件大小阈值 `small_threshold` `large_threshold` 在 FnF 流程定义中配置
+* 文件大小阈值 `small_file_limit` `medium_file_limit` 在 FnF 流程定义中配置
 
 **使用步骤**
 

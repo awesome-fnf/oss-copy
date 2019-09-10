@@ -34,8 +34,8 @@ class TestIndex(TestCase):
     "prefix": "",
     "marker": "",
     "delimiter": "/",
-    "small_threshold": 5,
-    "large_threshold": 10,
+    "small_file_limit": 5,
+    "medium_file_limit": 10,
     "max_group_size": 5
 }
 """
@@ -45,8 +45,8 @@ class TestIndex(TestCase):
                     "has_more": True,
                     "marker": "4",
                     "small": [["5", "5"]],
-                    "large": [["10", 10], ["8", 8]],
-                    "xlarge": [["15", 15]]
+                    "medium": [["10", 10], ["8", 8]],
+                    "large": [["15", 15]]
                 })
 
     def test_handler(self):
@@ -71,8 +71,8 @@ class TestIndex(TestCase):
     "prefix": "",
     "marker": "",
     "delimiter": "/",
-    "small_threshold": 5,
-    "large_threshold": 10,
+    "small_file_limit": 5,
+    "medium_file_limit": 10,
     "max_group_size": 5
 }
 """
@@ -82,8 +82,8 @@ class TestIndex(TestCase):
                     "has_more": True,
                     "marker": "4",
                     "small": [["5", "5"]],
-                    "large": [["10", 10], ["8", 8]],
-                    "xlarge": [["15", 15]]
+                    "medium": [["10", 10], ["8", 8]],
+                    "large": [["15", 15]]
                 })
 
     def test_handler_list_object_twice(self):
@@ -119,8 +119,8 @@ class TestIndex(TestCase):
     "prefix": "",
     "marker": "",
     "delimiter": "/",
-    "small_threshold": 5,
-    "large_threshold": 10,
+    "small_file_limit": 5,
+    "medium_file_limit": 10,
     "max_group_size": 20
 }
 """
@@ -130,8 +130,8 @@ class TestIndex(TestCase):
                     "has_more": False,
                     "marker": "",
                     "small": [["5", "5"], ["4", "5"], ["5", "4"]],
-                    "large": [["10", 10], ["8", 8], ["10", 10], ["8", 8]],
-                    "xlarge": [["15", 15], ["15", 15]]
+                    "medium": [["10", 10], ["8", 8], ["10", 10], ["8", 8]],
+                    "large": [["15", 15], ["15", 15]]
                 })
 if __name__ == '__main__':
     main()

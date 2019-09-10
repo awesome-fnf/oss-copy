@@ -15,13 +15,13 @@ steps:
   - type: pass
     name: init
     outputMappings:
-      # Files smaller than small_threshold are processed together.
-      # Files larger than small_threshold are broken into multiple parts.
-      - target: small_threshold
+      # Files smaller than small_file_limit are processed together.
+      # Files larger than small_file_limit are broken into multiple parts.
+      - target: small_file_limit
         source: 52428800 # 50MB
-      # Files larger than large_threshold are processed in parallel with multiple function instances.
-      # Each function instance processes up to large_threshold amount of files.
-      - target: large_threshold
+      # Files larger than medium_file_limit are processed in parallel with multiple function instances.
+      # Each function instance processes up to medium_file_limit amount of files.
+      - target: medium_file_limit
         source: 536870912 # 0.5GB
       # The listObjects returns up to group_threshold groups
       - target: group_threshold
@@ -47,10 +47,10 @@ steps:
         source: $input.prefix
       - target: delimiter
         source: /
-      - target: small_threshold
-        source: $local.small_threshold
-      - target: large_threshold
-        source: $local.large_threshold
+      - target: small_file_limit
+        source: $local.small_file_limit
+      - target: medium_file_limit
+        source: $local.medium_file_limit
       - target: group_threshold
         source: $local.group_threshold
     retry:
@@ -91,7 +91,7 @@ steps:
             maxAttempts: 10
             multiplier: 1.5
   - type: foreach
-    name: copyLargeObjects
+    name: copyMediumObjects
     iterationMapping:
       collection: $.large
       item: key_info
@@ -121,9 +121,9 @@ steps:
             maxAttempts: 10
             multiplier: 1.5
   - type: foreach
-    name: copyXlargeObjects
+    name: copyLargeObjects
     iterationMapping:
-      collection: $.xlarge
+      collection: $.large
       item: key_info
     steps:
       - type: task
@@ -140,8 +140,8 @@ steps:
             source: $input.part_size
           - target: total_size
             source: $input.key_info[1]
-          - target: large_threshold
-            source: $input.large_threshold
+          - target: medium_file_limit
+            source: $input.medium_file_limit
         retry:
           - errors:
             - FC.ResourceThrottled

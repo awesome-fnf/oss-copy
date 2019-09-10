@@ -3,8 +3,8 @@
     "prefix": "",
     "marker": "",
     "delimiter": "",
-    "large_threshold": 536870912,
-    "small_threshold": 1048576,
+    "medium_file_limit": 536870912,
+    "small_file_limit": 1048576,
     "group_threshold": 50,
     "total_group_count": 0
 }

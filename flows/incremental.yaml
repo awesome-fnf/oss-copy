@@ -17,16 +17,16 @@ steps:
   - type: pass
     name: init
     outputMappings:
-      - target: small_threshold
+      - target: small_file_limit
         source: 52428800 # 50MB
-      - target: large_threshold
+      - target: medium_file_limit
         source: 536870912 # 0.5GB
       - target: part_size
         source: 52428800 # 50MB
   - type: choice
     name: copyBySize
     choices:
-      - condition: $.total_size <= $.small_threshold
+      - condition: $.total_size <= $.small_file_limit
         steps:
           - type: task
             name: copyObject
@@ -41,7 +41,7 @@ steps:
                 intervalSeconds: 3
                 maxAttempts: 10
                 multiplier: 1.5
-      - condition: $.total_size <= $.large_threshold
+      - condition: $.total_size <= $.medium_file_limit
         steps:
           - type: task
             name: copyObjectWithMultipartUpload
@@ -72,8 +72,8 @@ steps:
               source: $input.part_size
             - target: total_size
               source: $input.total_size
-            - target: large_threshold
-              source: $input.large_threshold
+            - target: medium_file_limit
+              source: $input.medium_file_limit
           retry:
             - errors:
               - FC.ResourceThrottled

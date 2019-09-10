@@ -12,7 +12,7 @@ import json
 #   "key": "",
 #   "part_size": number,
 #   "total_size": number,
-#   "large_threshold": number
+#   "medium_file_limit": number
 # }
 
 FNF_PARALLEL_LIMIT = 100
@@ -26,7 +26,7 @@ def handler(event, context):
   dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ['DEST_OSS_ENDPOINT'], evt["dest_bucket"])
   
   # Group parts by size and each group will be handled by one function execution.
-  total_num_of_parts, num_of_groups, num_of_parts_per_group = calc_groups(evt["total_size"], evt["part_size"], evt["large_threshold"])
+  total_num_of_parts, num_of_groups, num_of_parts_per_group = calc_groups(evt["total_size"], evt["part_size"], evt["medium_file_limit"])
   upload_id = dest_client.init_multipart_upload(evt["key"]).upload_id
 
   return {
