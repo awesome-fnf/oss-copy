@@ -5,8 +5,8 @@ import logging
 import re
 
 from aliyunsdkcore import client
-from aliyunsdkcore.auth.credentials import StsTokenCredential
-from aliyunsdkcore.acs_exception.exceptions import ServerException
+from aliyunsdkcore.auth.credentials import StsTokenCredential, AccessKeyCredential
+from aliyunsdkcore.acs_exception.exceptions import ClientException, ServerException
 from aliyunsdkfnf.request.v20190315 import StartExecutionRequest
 
 
@@ -16,11 +16,20 @@ def handler(event, context):
   logger.info("Handling event: %s", evt)
 
   creds = context.credentials
-  sts_token_credential = StsTokenCredential(creds.access_key_id, creds.access_key_secret, creds.security_token)
-  fnf_client = client.AcsClient(region_id=context.region, credential=sts_token_credential)
+  local = bool(os.getenv('local', ""))
+
+  if (local):
+    acs_creds = AccessKeyCredential(creds.access_key_id, creds.access_key_secret)
+    endpoint = "%s.fnf.aliyuncs.com" % context.region
+  else:
+    acs_creds = StsTokenCredential(creds.access_key_id, creds.access_key_secret, creds.security_token)
+    endpoint = "%s-internal.fnf.aliyuncs.com" % context.region
+
+  fnf_client = client.AcsClient(region_id=context.region, credential=acs_creds)
 
   request = StartExecutionRequest.StartExecutionRequest()
   request.set_FlowName(os.environ["FLOW_NAME"])
+  request.set_endpoint(endpoint)
 
   input = {
     "src_bucket": evt["src_bucket"],
@@ -33,5 +42,14 @@ def handler(event, context):
   request.set_ExecutionName(execution_name)
 
   logger.info("Starting flow execution: %s", execution_name)
-  # TODO: swallow ExecutionAlreadyExists error
-  return fnf_client.do_action_with_exception(request)
+  try:
+    resp = fnf_client.do_action_with_exception(request)
+    return resp
+  except ServerException as e:
+    # https://help.aliyun.com/document_detail/122628.html
+    if e.get_error_code() == 'ExecutionAlreadyExists':
+      logger.warn("Execution %s already exists", execution_name)
+      return {}
+    else:
+      logger.error("Failed to call fnf due to server exception: %s", e)
+      raise e

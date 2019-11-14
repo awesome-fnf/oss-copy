@@ -50,3 +50,9 @@ templates:
           default_evt:
             type: file
             value: functions/uploadParts/event.evt
+      startMultipleCopy:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/startMultipleCopy/event.evt

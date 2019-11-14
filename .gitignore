@@ -1,2 +1,7 @@
+.env
+template.yml
+.funignore
+functions/**/event.evt
+functions/**/test_*.py
 functions/**/__pycache__
 functions/**/*.pyc
