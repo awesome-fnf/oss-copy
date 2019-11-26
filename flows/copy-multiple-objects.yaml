@@ -93,7 +93,7 @@ steps:
   - type: foreach
     name: copyMediumObjects
     iterationMapping:
-      collection: $.large
+      collection: $.medium
       item: key_info
     steps:
       - type: task

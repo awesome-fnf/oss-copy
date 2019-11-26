@@ -21,8 +21,7 @@
 ![flow](images/incremental.png)
 
 **相关配置**
-* 源 Bucket `src_bucket` 由 Funcraft template 配置。
-* OSS 触发器配置由 Funcraft template 配置。
+* OSS 触发器配置由 Funcraft template 配置，指定了源 Bucket。
 * 目的 Bucket `dst_bucket` 由 `startCopyWithFnF` 函数的环境变量配置
 * 源 OSS endpoint `src_bucket_endpoint` 和目的 OSS endpoint `dst_bucket_endpoint` 通过函数环境变量配置
 * 分片大小 `part_size` 在 FnF 流程定义中配置
@@ -36,15 +35,16 @@
 
 2. 使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 创建流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124155.html)。流程定义使用[copy-single-object.yaml](./flows/copy-single-object.yaml)。
 
-    ```aliyun fnf CreateFlow --Description "incremental copy" --Type FDL --Name oss-incremental-copy --Definition "$(<./flows/copy-single-object.yaml.yaml)" --RoleArn acs:ram::account-id:role/fnf```
+    ```aliyun fnf CreateFlow --Description "incremental copy" --Type FDL --Name oss-incremental-copy --Definition "$(<./flows/copy-single-object.yaml)" --RoleArn acs:ram::account-id:role/fnf```
 
-3. 测试复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 `tbc/Archive.zip` 复制到 `svsvsv` bucket。
+3. 使用 ossutil 上传文件到源 Bucket，该文件会被同步到目的 Bucket。
+
+    ```ossutil -e http://oss-cn-hangzhou.aliyuncs.com -i ak -k secret  cp ~/Downloads/testfile oss://hangzhouhangzhou/tbc/```
+
+3. （可选）可以通过直接启动流程复制单个文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 `tbc/Archive.zip` 复制到 `svsvsv` bucket。
 
     ```aliyun fnf StartExecution --FlowName oss-incremental-copy --Input '{"src_bucket": "hangzhouhangzhou", "dest_bucket": "svsvsv", "key": "tbc/Archive.zip", "total_size": 936771720}' --ExecutionName run1```
 
-4. 使用 ossutil 上传文件到源 Bucket，该文件会被同步到目的 Bucket。
-
-    ```ossutil -e http://oss-cn-hangzhou.aliyuncs.com -i ak -k secret  cp ~/Downloads/testfile oss://hangzhouhangzhou/tbc/```
 
 ### 存量数据复制
 存量数据复制流程如下：
@@ -63,7 +63,7 @@
 
 2. 使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 创建流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124155.html)。流程定义使用[copy-multiple-objects.yaml](./flows/copy-multiple-objects.yaml.yaml)。
 
-    ```aliyun fnf CreateFlow --Description "historical copy" --Type FDL --Name oss-historical-copy --Definition "$(<./flows/copy-multiple-objects.yaml.yaml)" --RoleArn acs:ram::account-id:role/fnf```
+    ```aliyun fnf CreateFlow --Description "historical copy" --Type FDL --Name oss-historical-copy --Definition "$(<./flows/copy-multiple-objects.yaml)" --RoleArn acs:ram::account-id:role/fnf```
 
 3. 测试复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 所有文件复制到 `svsvsv` bucket。
 
