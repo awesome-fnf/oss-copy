@@ -4,7 +4,8 @@
 #   "src_bucket": "",
 #   "dest_bucket": "",
 #   "prefix": "",
-#   "marker": ""
+#   "marker": "",
+#   "delimiter": ""
 # }
 
 # FDL reference: https://help.aliyun.com/document_detail/122492.html
@@ -46,7 +47,7 @@ steps:
       - target: prefix
         source: $input.prefix
       - target: delimiter
-        source: /
+        source: $input.delimiter
       - target: small_file_limit
         source: $local.small_file_limit
       - target: medium_file_limit
@@ -86,10 +87,12 @@ steps:
             - FC.ResourceExhausted
             - FC.InternalServerError
             - FC.Unknown
+            # OSS error
+            - FC.ServerError
             - FnF.TaskTimeout
             intervalSeconds: 3
             maxAttempts: 10
-            multiplier: 1.5
+            multiplier: 1
   - type: foreach
     name: copyMediumObjects
     iterationMapping:
@@ -116,10 +119,12 @@ steps:
             - FC.ResourceExhausted
             - FC.InternalServerError
             - FC.Unknown
+            # OSS error
+            - FC.ServerError
             - FnF.TaskTimeout
             intervalSeconds: 3
             maxAttempts: 10
-            multiplier: 1.5
+            multiplier: 1
   - type: foreach
     name: copyLargeObjects
     iterationMapping:
@@ -148,10 +153,12 @@ steps:
             - FC.ResourceExhausted
             - FC.InternalServerError
             - FC.Unknown
+            # OSS error
+            - FC.ServerError
             - FnF.TaskTimeout
             intervalSeconds: 3
             maxAttempts: 10
-            multiplier: 1.5
+            multiplier: 1
       - type: foreach
         name: uploadGroups
         iterationMapping:
@@ -167,10 +174,12 @@ steps:
                 - FC.ResourceExhausted
                 - FC.InternalServerError
                 - FC.Unknown
+                # OSS error
+                - FC.ServerError
                 - FnF.TaskTimeout
                 intervalSeconds: 3
                 maxAttempts: 10
-                multiplier: 1.5
+                multiplier: 1
         inputMappings:
           - target: src_bucket
             source: $input.src_bucket
@@ -211,10 +220,12 @@ steps:
             - FC.ResourceExhausted
             - FC.InternalServerError
             - FC.Unknown
+            # OSS error
+            - FC.ServerError
             - FnF.TaskTimeout
             intervalSeconds: 3
             maxAttempts: 10
-            multiplier: 1.5
+            multiplier: 1
   - type: choice
     name: hasMoreObjects
     choices:
