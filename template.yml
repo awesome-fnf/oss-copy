@@ -18,6 +18,11 @@ Parameters:
   DestBucket:
     Type: String
     Description: 'Specifies the destination bucket'
+  DestAccessRole:
+    Type: String
+    Description: 'Specifies the role used to access the destination bucket'
+    # FC doesn't allow empty env var value.
+    Default: 'None'
 Resources:
   CopySingleFileFlow:
     Type: 'Aliyun::Serverless::Flow'
@@ -48,6 +53,7 @@ Resources:
     Properties:
       Description: oss-backup
       Policies:
+        - AliyunSTSAssumeRoleAccess
         - Version: '1'
           Statement:
             - Effect: Allow
@@ -155,6 +161,8 @@ Resources:
               Ref: DestBucket
             DEST_OSS_ENDPOINT:
               Ref: DestOssEndpoint
+            DEST_ACCESS_ROLE:
+              Ref: DestAccessRole
             FLOW_NAME:
               'Fn::GetAtt':
                 - CopySingleFileFlow
@@ -176,3 +184,16 @@ Resources:
                   Ref: OSSKeyPrefix
                 Suffix:
                   Ref: OSSKeySuffix
+Outputs:
+  CopyMultipleFilesFlowName:
+    Description: The name of the CopyMultipleFilesFlow.
+    Value:
+      'Fn::GetAtt':
+        - CopyMultipleFilesFlow
+        - Name
+  CopySingleFileFlow:
+    Description: The name of the CopySingleFileFlow.
+    Value:
+      'Fn::GetAtt':
+        - CopySingleFileFlow
+        - Name

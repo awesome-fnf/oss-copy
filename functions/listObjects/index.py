@@ -5,12 +5,20 @@ import os
 import logging
 import re
 
+from oss_client import get_oss_client
+
+clients = {}
+
 def handler(event, context):
   logger = logging.getLogger()
   evt = json.loads(event)
   logger.info("Handling event: %s", evt)
   src_endpoint = 'https://oss-%s-internal.aliyuncs.com' % context.region
-  src_client = get_oss_client(context, src_endpoint, evt["bucket"])
+  src_bucket = evt["src_bucket"]
+  src_client = clients.get(src_bucket)
+  if src_client is None:
+    src_client = get_oss_client(context, src_endpoint, src_bucket)
+    clients[src_bucket] = src_client
 
   has_more = False
   marker = evt["marker"]
@@ -77,13 +85,3 @@ def handler(event, context):
     "total_group_count": total_group_count,
     "execution_name": evt.get("execution_name", "") + "-" + re.sub(r"[^a-zA-Z0-9-_]", "_", marker)
   }
-
-def get_oss_client(context, endpoint, bucket):
-  creds = context.credentials
-  if creds.security_token != None:
-    auth = oss2.StsAuth(creds.access_key_id, creds.access_key_secret, creds.security_token)
-  else:
-    # for local testing, use the public endpoint
-    endpoint = str.replace(endpoint, "-internal", "")
-    auth = oss2.Auth(creds.access_key_id, creds.access_key_secret)
-  return oss2.Bucket(auth, endpoint, bucket)

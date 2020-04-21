@@ -7,15 +7,26 @@ import time
 import subprocess
 import random
 import string
-from task_queue import TaskQueue
 
+from task_queue import TaskQueue
+from oss_client import get_oss_client
+
+clients = {}
 def handler(event, context):
   logger = logging.getLogger()
   evt = json.loads(event)
   logger.info("Handling event: %s", evt)
   src_endpoint = 'https://oss-%s-internal.aliyuncs.com' % context.region
-  src_client = get_oss_client(context, src_endpoint, evt["src_bucket"])
-  dest_client = get_oss_client(context, evt['dest_oss_endpoint'], evt["dest_bucket"])
+  src_bucket = evt["src_bucket"]
+  src_client = clients.get(src_bucket)
+  if src_client is None:
+    src_client = get_oss_client(context, src_endpoint, src_bucket)
+    clients[src_bucket] = src_client
+  dest_bucket = evt["dest_bucket"]
+  dest_client = clients.get(dest_bucket)
+  if dest_client is None:
+    dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ.get('DEST_OSS_ENDPOINT') or src_endpoint, dest_bucket, evt.get("dest_access_role"))
+    clients[dest_bucket] = dest_client
 
   crcs = evt.get("crcs")
   failed_crcs = []
@@ -53,14 +64,3 @@ def handler(event, context):
   task_q.run()
 
   return {'failed_crcs': failed_crcs, 'success': len(failed_crcs) == 0}
-
-
-def get_oss_client(context, endpoint, bucket):
-  creds = context.credentials
-  if creds.security_token != None:
-    auth = oss2.StsAuth(creds.access_key_id, creds.access_key_secret, creds.security_token)
-  else:
-    # for local testing, use the public endpoint
-    endpoint = str.replace(endpoint, "-internal", "")
-    auth = oss2.Auth(creds.access_key_id, creds.access_key_secret)
-  return oss2.Bucket(auth, endpoint, bucket)

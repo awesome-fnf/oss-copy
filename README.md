@@ -1,12 +1,48 @@
 ## 简介
 
-本示例演示了如何使用函数工作流从一个 OSS Bucket 复制文件到另一个 Bucket，其中源 Bucket 和目标 Bucket 可以在同一个区域也可以在不同区域。
+本应用使用 Serverless 工作流从一个 OSS Bucket 复制文件到另一个 Bucket，其中源 Bucket 和目标 Bucket 可以在同一个区域也可以在不同区域，可以属于同一个账号也可以属于不同账号。支持增量数据和存量数据复制。
 
 
-## 场景
+## 使用说明
+
+### 准备工作
+
+如果是同账号文件复制，可以忽略下面的准备工作。如果需要将账号 A 下的 Bucket 文件复制到账号 B 下的 Bucket，则需要账号 B 创建一个角色，该角色允许账号 A 在其指定 Bucket 下创建文件，原理和使用说明参见[文档](https://www.alibabacloud.com/help/zh/doc-detail/93745.htm)。
+
+信任策略如下，将`{AccountA}`替换成账号 A 的账号 ID。
+```
+{
+    "Statement": [
+        {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+                "RAM": [
+                    "acs:ram::{AccountA}:root"
+                ]
+            }
+        }
+    ],
+    "Version": "1"
+}
+```
+
+权限策略如下，将`{DestBucket}`替换成目标 Bucket。更多 OSS 权限管理可以参见[文档](https://help.aliyun.com/document_detail/100680.html)。
+```
+{
+    "Version": "1",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "oss:PutObject",
+            "Resource": ["acs:oss:*:*:{DestBucket}/*", "acs:oss:*:*:{DestBucket}"]
+        }
+    ]
+}
+```
 
 ### 增量数据复制
-增量数据复制依赖于函数计算的 OSS 触发器，当有新文件上传或者文件更新时，OSS 会触发函数 `startCopyWithFnF`，该函数启动一个 FnF 流程，逻辑如下：
+增量数据复制依赖于函数计算的 OSS 触发器，当有新文件上传或者文件更新时，OSS 会触发函数 `startSingleCopy`，该函数启动一个流程，逻辑如下：
 * 如果要复制的文件比较小（比如 50MB 以内），会使用函数 `copyObject` 流式下载文件并上传文件到目标 Bucket。
 * 如果要复制的文件比较大（比如 50MB 到 1GB），会使用函数 `copyObjectWithMultipartUpload` 多线程分片下载文件并分片上传到目标 Bucket。
 * 如果要复制的文件很大（比如 1GB 以上），会使用三个函数完成复制任务。
@@ -18,32 +54,24 @@
 * 同区域复制延迟低，文件大小阈值可以适当调大。
 * 跨区域复制延迟高，文件大小阈值可以适当调小。
 
-![flow](images/incremental.png)
-
-**相关配置**
-* OSS 触发器配置由 Funcraft template 配置，指定了源 Bucket。
-* 目的 Bucket `dst_bucket` 由 `startCopyWithFnF` 函数的环境变量配置
-* 源 OSS endpoint `src_bucket_endpoint` 和目的 OSS endpoint `dst_bucket_endpoint` 通过函数环境变量配置
-* 分片大小 `part_size` 在 FnF 流程定义中配置
-* 文件大小阈值 `small_file_limit` `medium_file_limit` 在 FnF 流程定义中配置
+![flow](images/single-copy.png)
 
 **使用步骤**
 
-1. 使用[Funcraft](https://help.aliyun.com/document_detail/64204.html)部署函数
 
-    ```fun deploy -t template.yml```
+1. 使用[Funcraft](https://help.aliyun.com/document_detail/64204.html)部署资源。下面的参数主要是用于增量文件复制，如果不需要对增量文件复制，可以设置一个不存在的 `OSSKeyPrefix`。
+    * `SrcBucket`指定了源 Bucket
+    * `DestBucket`指定了目标 Bucket
+    * `OSSKeyPrefix`指定了源 Bucket 的某个路径，可以不指定。指定后，只有该路径下的文件才会被复制到目标 Bucket。
+    * `OSSKeySuffix`指定了源 Bucket 的文件后缀，可以不指定。指定后，只有以此后缀结束的文件才会被复制到目标 Bucket。
+    * `DestAccessRole` 指定了访问目标 Bucket 所需要的角色，只需要在跨账号复制场景下指定。如复制A账号的文件到B账号，该角色是由B提供，授权A账号写B账号 OSS 的权限。
 
-2. 使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 创建流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124155.html)。流程定义使用[copy-single-object.yaml](./flows/copy-single-object.yaml)。
+    fun package -b bucket-for-package-functions
+    fun deploy --use-ros --stack-name oss-cp -p 'SrcBucket=hangzhouhangzhou' -p 'DestBucket=fc-code-1584293594287572-hangzhou' -p 'OSSKeyPrefix=test-copy1' -p 'OSSKeySuffix=' -p 'DestOssEndpoint=oss-cn-hangzhou-internal.aliyuncs.com' -p 'DestAccessRole=acs:ram::1584293594287572:role/oss-put`
 
-    ```aliyun fnf CreateFlow --Description "incremental copy" --Type FDL --Name oss-incremental-copy --Definition "$(<./flows/copy-single-object.yaml)" --RoleArn acs:ram::account-id:role/fnf```
+2. 使用 ossutil 上传文件到源 Bucket，该文件会被同步到目的 Bucket。也可以通过控制台上传文件。
 
-3. 使用 ossutil 上传文件到源 Bucket，该文件会被同步到目的 Bucket。
-
-    ```ossutil -e http://oss-cn-hangzhou.aliyuncs.com -i ak -k secret  cp ~/Downloads/testfile oss://hangzhouhangzhou/tbc/```
-
-3. （可选）可以通过直接启动流程复制单个文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 `tbc/Archive.zip` 复制到 `svsvsv` bucket。
-
-    ```aliyun fnf StartExecution --FlowName oss-incremental-copy --Input '{"src_bucket": "hangzhouhangzhou", "dest_bucket": "svsvsv", "key": "tbc/Archive.zip", "total_size": 936771720}' --ExecutionName run1```
+    ```ossutil -e http://oss-cn-hangzhou.aliyuncs.com -i ak -k secret  cp ~/Downloads/testfile oss://hangzhouhangzhou/test-copy1/```
 
 
 ### 存量数据复制
@@ -53,21 +81,39 @@
 * 第二组是大文件。`copyObjectWithMultipartUpload` 函数负责处理大文件。
 * 第三组是超大文件。`initMultipartUpload`，`uploadParts`，`completeMultipartUpload` 函数负责处理超大文件。
 
-![flow](images/historical.png)
+![flow](images/multiple-copy.png)
 
 **使用步骤**
 
-1. 使用[Funcraft](https://help.aliyun.com/document_detail/64204.html)部署函数
+1. 使用[Funcraft](https://help.aliyun.com/document_detail/64204.html)部署资源。
 
-    ```fun deploy -t template.yml```
+```
+    fun package -b bucket-for-package-functions
+    fun deploy --use-ros --stack-name oss-cp -p 'SrcBucket=hangzhouhangzhou' -p 'DestBucket=fc-code-1584293594287572-hangzhou' -p 'OSSKeyPrefix=this-does-not-exist' -p 'OSSKeySuffix=this-does-not-exist' -p 'DestOssEndpoint=oss-cn-hangzhou-internal.aliyuncs.com'
 
-2. 使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 创建流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124155.html)。流程定义使用[copy-multiple-objects.yaml](./flows/copy-multiple-objects.yaml.yaml)。
+    ROS Stack Outputs:
 
-    ```aliyun fnf CreateFlow --Description "historical copy" --Type FDL --Name oss-historical-copy --Definition "$(<./flows/copy-multiple-objects.yaml)" --RoleArn acs:ram::account-id:role/fnf```
+    ┌───────────────────────────┬─────────────────────────────────────────────┬────────────────────────────────────────┐
+    │ OutputKey                 │ OutputValue                                 │ Description                            │
+    ├───────────────────────────┼─────────────────────────────────────────────┼────────────────────────────────────────┤
+    │ CopyMultipleFilesFlowName │ cp-test1-CopyMultipleFilesFlow-098FDDA34A4C │ The name of the CopyMultipleFilesFlow. │
+    ├───────────────────────────┼─────────────────────────────────────────────┼────────────────────────────────────────┤
+    │ CopySingleFileFlow        │ cp-test1-CopySingleFileFlow-64B1E6B4EBDB    │ The name of the CopySingleFileFlow.    │
+    └───────────────────────────┴─────────────────────────────────────────────┴────────────────────────────────────────┘
+```
 
-3. 测试复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的 所有文件复制到 `svsvsv` bucket。
+2. 复制文件：使用[阿里云 CLI](https://help.aliyun.com/document_detail/122611.html) 执行流程。使用控制台请参见[文档](https://help.aliyun.com/document_detail/124156.html)。执行使用下面的输入格式。该输入将会把 `hangzhouhangzhou` bucket 下的所有文件复制到 `fc-code-1584293594287572-hangzhou` bucket。其中输入参数说明如下：
+    * `src_bucket`指定了源 Bucket
+    * `dest_bucket`指定了目标 Bucket
+    * `dest_oss_endpoint` 指定了目标 Bucket OSS endpoint
+    * `prefix`指定了源 Bucket 的某个路径，只有该路径下的文件才会被复制到目标 Bucket。如果为空，则复制源 Bucket 下所有文件。
+    * `marker` 指定了以源 Bucket 中某个文件开始复制。如果为空，则复制源 Bucket 下所有文件。
+    * `dest_access_role` 指定了访问目标 Bucket 所需要的角色，只需要在跨账号复制场景下指定。如复制A账号的文件到B账号，该角色是由B提供，授权A账号写B账号 OSS 的权限。
 
-    ```aliyun fnf StartExecution --FlowName oss-historical-copy --Input '{"src_bucket": "hangzhouhangzhou", "dest_bucket": "svsvsv", "prefix": "", "marker": "", "delimiter": ""}' --ExecutionName run1```
+
+```
+    aliyun fnf StartExecution --FlowName cp-test1-CopyMultipleFilesFlow-098FDDA34A4C --Input '{"src_bucket": "hangzhouhangzhou",   "dest_oss_endpoint": "oss-cn-hangzhou-internal.aliyuncs.com",   "dest_access_role": "acs:ram::1584293594287572:role/assume-role",   "dest_bucket": "fc-code-1584293594287572-hangzhou",   "prefix": "test-oss-copy",   "marker": "",   "delimiter": ""}' --ExecutionName run1
+```
 
 ## 优势
 * 支持任意大小文件的复制。
@@ -75,12 +121,5 @@
 
 
 
-## 扩展场景
-* 将文件复制到多个区域：只需要修改流程定义添加一个 `foreach` 步骤，对每个区域执行复制逻辑。
-* 不受限制解压缩任意大小文件：只需要按照文件大小采用不同的解压方式。
-    * 解压后是数量较少的文件
-    * 解压后是数量较多的文件
-
 ## 优化
 * 检查 crc 确保数据的完整性
-* 不通过 init 步骤方式配置流程使用常量，减少步骤转换数。

@@ -41,7 +41,7 @@ steps:
     name: listObjects
     resourceArn: !Ref OssCopy/listObjects
     inputMappings:
-      - target: bucket
+      - target: src_bucket
         source: $input.src_bucket
       - target: marker
         source: $local.marker
@@ -84,6 +84,8 @@ steps:
             source: $input.dest_oss_endpoint
           - target: dest_bucket
             source: $input.dest_bucket
+          - target: dest_access_role
+            source: $input.dest_access_role
           - target: keys
             source: $input.keys
         retry:
@@ -114,6 +116,8 @@ steps:
             source: $input.dest_oss_endpoint
           - target: dest_bucket
             source: $input.dest_bucket
+          - target: dest_access_role
+            source: $input.dest_access_role
           - target: key
             source: $input.key_info[0]
           - target: part_size
@@ -148,6 +152,8 @@ steps:
             source: $input.dest_oss_endpoint
           - target: dest_bucket
             source: $input.dest_bucket
+          - target: dest_access_role
+            source: $input.dest_access_role
           - target: key
             source: $input.key_info[0]
           - target: part_size
@@ -196,6 +202,8 @@ steps:
             source: $input.dest_oss_endpoint
           - target: dest_bucket
             source: $input.dest_bucket
+          - target: dest_access_role
+            source: $input.dest_access_role
           - target: key
             source: $input.key_info[0]
           - target: part_size
@@ -221,6 +229,8 @@ steps:
             source: $input.dest_oss_endpoint
           - target: dest_bucket
             source: $input.dest_bucket
+          - target: dest_access_role
+            source: $input.dest_access_role
           - target: key
             source: $input.key_info[0]
           - target: upload_id
@@ -254,6 +264,8 @@ steps:
                 source: $input.dest_oss_endpoint
               - target: dest_bucket
                 source: $input.dest_bucket
+              - target: dest_access_role
+                source: $input.dest_access_role
               - target: prefix
                 source: $input.prefix
               - target: marker

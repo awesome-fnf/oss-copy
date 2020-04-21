@@ -5,6 +5,8 @@ import oss2
 import json
 import time
 
+from oss_client import get_oss_client
+
 
 # Copy multiple objects specified by keys from src_bucket to dest_bucket.
 
@@ -15,13 +17,23 @@ import time
 #   "key": "a"
 # }
 
+clients = {}
+
 def handler(event, context):
   logger = logging.getLogger()
   evt = json.loads(event)
   logger.info("Handling event: %s", evt)
   src_endpoint = 'https://oss-%s-internal.aliyuncs.com' % context.region
-  src_client = get_oss_client(context, src_endpoint, evt["src_bucket"])
-  dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ['DEST_OSS_ENDPOINT'], evt["dest_bucket"])
+  src_bucket = evt["src_bucket"]
+  src_client = clients.get(src_bucket)
+  if src_client is None:
+    src_client = get_oss_client(context, src_endpoint, src_bucket)
+    clients[src_bucket] = src_client
+  dest_bucket = evt["dest_bucket"]
+  dest_client = clients.get(dest_bucket)
+  if dest_client is None:
+    dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ.get('DEST_OSS_ENDPOINT') or src_endpoint, dest_bucket, evt.get("dest_access_role"))
+    clients[dest_bucket] = dest_client
 
   copy(src_client, dest_client, evt["key"])
 
@@ -36,13 +48,3 @@ def copy(src_client, dest_client, key):
   res = dest_client.put_object(key, object_stream)
   end_time = time.time()
   logger.info('Copied %s in %s secs', key, end_time-start_time)
-
-def get_oss_client(context, endpoint, bucket):
-  creds = context.credentials
-  if creds.security_token != None:
-    auth = oss2.StsAuth(creds.access_key_id, creds.access_key_secret, creds.security_token)
-  else:
-    # for local testing, use the public endpoint
-    endpoint = str.replace(endpoint, "-internal", "")
-    auth = oss2.Auth(creds.access_key_id, creds.access_key_secret)
-  return oss2.Bucket(auth, endpoint, bucket)

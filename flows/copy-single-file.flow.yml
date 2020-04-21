@@ -73,6 +73,8 @@ steps:
               source: $input.dest_oss_endpoint
             - target: dest_bucket
               source: $input.dest_bucket
+            - target: dest_access_role
+              source: $input.dest_access_role
             - target: key
               source: $input.key
             - target: part_size
@@ -121,6 +123,8 @@ steps:
               source: $input.dest_oss_endpoint
             - target: dest_bucket
               source: $input.dest_bucket
+            - target: dest_access_role
+              source: $input.dest_access_role
             - target: key
               source: $input.key
             - target: part_size
@@ -146,6 +150,8 @@ steps:
               source: $input.dest_oss_endpoint
             - target: dest_bucket
               source: $input.dest_bucket
+            - target: dest_access_role
+              source: $input.dest_access_role
             - target: key
               source: $input.key
             - target: upload_id

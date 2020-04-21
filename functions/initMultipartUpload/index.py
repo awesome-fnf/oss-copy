@@ -5,6 +5,8 @@ import oss2
 from oss2 import SizedFileAdapter, determine_part_size
 import json
 
+from oss_client import get_oss_client
+
 # event format
 # {
 #   "src_bucket": "",
@@ -18,13 +20,23 @@ import json
 FNF_PARALLEL_LIMIT = 100
 
 
+clients = {}
+
 def handler(event, context):
   logger = logging.getLogger()
   evt = json.loads(event)
   logger.info("Handling event: %s", evt)
   src_endpoint = 'https://oss-%s-internal.aliyuncs.com' % context.region
-  src_client = get_oss_client(context, src_endpoint, evt["src_bucket"])
-  dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ['DEST_OSS_ENDPOINT'], evt["dest_bucket"])
+  src_bucket = evt["src_bucket"]
+  src_client = clients.get(src_bucket)
+  if src_client is None:
+    src_client = get_oss_client(context, src_endpoint, src_bucket)
+    clients[src_bucket] = src_client
+  dest_bucket = evt["dest_bucket"]
+  dest_client = clients.get(dest_bucket)
+  if dest_client is None:
+    dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ.get('DEST_OSS_ENDPOINT') or src_endpoint, dest_bucket, evt.get("dest_access_role"))
+    clients[dest_bucket] = dest_client
   
   # Group parts by size and each group will be handled by one function execution.
   total_num_of_parts, num_of_groups, num_of_parts_per_group = calc_groups(evt["total_size"], evt["part_size"], evt["medium_file_limit"])
@@ -42,13 +54,3 @@ def calc_groups(total_size, part_size, max_total_part_size):
   total_num_of_parts = (total_size + part_size - 1) // part_size
   num_of_groups = (total_num_of_parts + num_of_parts_per_group - 1) // num_of_parts_per_group
   return total_num_of_parts, num_of_groups, num_of_parts_per_group
-
-def get_oss_client(context, endpoint, bucket):
-  creds = context.credentials
-  if creds.security_token != None:
-    auth = oss2.StsAuth(creds.access_key_id, creds.access_key_secret, creds.security_token)
-  else:
-    # for local testing, use the public endpoint
-    endpoint = str.replace(endpoint, "-internal", "")
-    auth = oss2.Auth(creds.access_key_id, creds.access_key_secret)
-  return oss2.Bucket(auth, endpoint, bucket)

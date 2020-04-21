@@ -56,6 +56,19 @@ templates:
           default_evt:
             type: file
             value: functions/startMultipleCopy/event.evt
+    OssCopy:
+      copyObject:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/copyObject/event.evt
+      listObjects:
+        event: default_evt
+        events:
+          default_evt:
+            type: file
+            value: functions/listObjects/event.evt
   test/template.yml:
     OssCopyTest:
       genFiles:
