@@ -3,6 +3,7 @@
 # Input:
 # {
 #   "src_bucket": "a",
+#   "dest_oss_endpoint": "",
 #   "dest_bucket": "b",
 #   "key": "c",
 #   "total_size": number
@@ -10,7 +11,7 @@
 
 # FDL reference: https://help.aliyun.com/document_detail/122492.html
 # More examples: http://fnf.byexamples.org
-version: v1beta1
+version: v1
 type: flow
 steps:
   # Set some constant values which will be used by following steps.
@@ -30,12 +31,14 @@ steps:
         steps:
           - type: task
             name: copyObject
-            resourceArn: acs:fc:::services/ossCopy/functions/copyObject
+            resourceArn: !Ref OssCopy/copyObject
             retry:
               - errors:
                 - FC.ResourceThrottled
                 - FC.ResourceExhausted
                 - FC.InternalServerError
+                # OSS error
+                - FC.ServerError
                 - FC.Unknown
                 - FnF.TaskTimeout
                 intervalSeconds: 3
@@ -45,12 +48,14 @@ steps:
         steps:
           - type: task
             name: copyObjectWithMultipartUpload
-            resourceArn: acs:fc:::services/ossCopy/functions/copyObjectWithMultipartUpload
+            resourceArn: !Ref OssCopy/copyObjectWithMultipartUpload
             retry:
               - errors:
                 - FC.ResourceThrottled
                 - FC.ResourceExhausted
                 - FC.InternalServerError
+                # OSS error
+                - FC.ServerError
                 - FC.Unknown
                 - FnF.TaskTimeout
                 intervalSeconds: 3
@@ -60,10 +65,12 @@ steps:
       steps:
         - type: task
           name: initMultipartUpload
-          resourceArn: acs:fc:::services/ossCopy/functions/initMultipartUpload
+          resourceArn: !Ref OssCopy/initMultipartUpload
           inputMappings:
             - target: src_bucket
               source: $input.src_bucket
+            - target: dest_oss_endpoint
+              source: $input.dest_oss_endpoint
             - target: dest_bucket
               source: $input.dest_bucket
             - target: key
@@ -79,6 +86,8 @@ steps:
               - FC.ResourceThrottled
               - FC.ResourceExhausted
               - FC.InternalServerError
+              # OSS error
+              - FC.ServerError
               - FC.Unknown
               - FnF.TaskTimeout
               intervalSeconds: 3
@@ -92,12 +101,14 @@ steps:
           steps:
             - type: task
               name: uploadGroup
-              resourceArn: acs:fc:::services/ossCopy/functions/uploadParts
+              resourceArn: !Ref OssCopy/uploadParts
               retry:
                 - errors:
                   - FC.ResourceThrottled
                   - FC.ResourceExhausted
                   - FC.InternalServerError
+                  # OSS error
+                  - FC.ServerError
                   - FC.Unknown
                   - FnF.TaskTimeout
                   intervalSeconds: 3
@@ -106,6 +117,8 @@ steps:
           inputMappings:
             - target: src_bucket
               source: $input.src_bucket
+            - target: dest_oss_endpoint
+              source: $input.dest_oss_endpoint
             - target: dest_bucket
               source: $input.dest_bucket
             - target: key
@@ -127,8 +140,10 @@ steps:
               source: $local[*].parts[*]
         - type: task
           name: completeMultipartUpload
-          resourceArn: acs:fc:::services/ossCopy/functions/completeMultipartUpload
+          resourceArn: !Ref OssCopy/completeMultipartUpload
           inputMappings:
+            - target: dest_oss_endpoint
+              source: $input.dest_oss_endpoint
             - target: dest_bucket
               source: $input.dest_bucket
             - target: key
@@ -142,6 +157,8 @@ steps:
               - FC.ResourceThrottled
               - FC.ResourceExhausted
               - FC.InternalServerError
+              # OSS error
+              - FC.ServerError
               - FC.Unknown
               - FnF.TaskTimeout
               intervalSeconds: 3

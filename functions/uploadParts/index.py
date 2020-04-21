@@ -24,7 +24,8 @@ def handler(event, context):
   logger = logging.getLogger()
   evt = json.loads(event)
   logger.info("Handling event: %s", evt)
-  src_client = get_oss_client(context, os.environ['SRC_OSS_ENDPOINT'], evt["src_bucket"])
+  src_endpoint = 'https://oss-%s-internal.aliyuncs.com' % context.region
+  src_client = get_oss_client(context, src_endpoint, evt["src_bucket"])
   dest_client = get_oss_client(context, evt.get("dest_oss_endpoint") or os.environ['DEST_OSS_ENDPOINT'], evt["dest_bucket"])
 
   parts = copy(gen_parts, src_client, dest_client, evt["key"], evt["part_size"], evt["total_size"], evt["upload_id"],

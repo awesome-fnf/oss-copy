@@ -35,6 +35,7 @@ def handler(event, context):
 
   input = {
     "src_bucket": evt["oss"]["bucket"]["name"],
+    "dest_oss_endpoint": os.environ['DEST_OSS_ENDPOINT'],
     "dest_bucket": os.environ['DEST_BUCKET'],
     "key": key,
     "total_size": evt["oss"]["object"]["size"]
@@ -44,5 +45,14 @@ def handler(event, context):
   request.set_ExecutionName(execution_name)
 
   logger.info("Starting flow execution: %s", execution_name)
-  # TODO: swallow ExecutionAlreadyExists error
-  return fnf_client.do_action_with_exception(request)
+  try:
+    resp = fnf_client.do_action_with_exception(request)
+    return resp
+  except ServerException as e:
+    # https://help.aliyun.com/document_detail/122628.html
+    if e.get_error_code() == 'ExecutionAlreadyExists':
+      logger.warn("Execution %s already exists", execution_name)
+      return {}
+    else:
+      logger.error("Failed to call fnf due to server exception: %s", e)
+      raise e

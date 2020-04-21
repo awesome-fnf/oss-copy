@@ -3,12 +3,14 @@ import oss2
 import json
 import os
 import logging
+import re
 
 def handler(event, context):
   logger = logging.getLogger()
   evt = json.loads(event)
   logger.info("Handling event: %s", evt)
-  src_client = get_oss_client(context, os.environ['SRC_OSS_ENDPOINT'], evt["bucket"])
+  src_endpoint = 'https://oss-%s-internal.aliyuncs.com' % context.region
+  src_client = get_oss_client(context, src_endpoint, evt["bucket"])
 
   has_more = False
   marker = evt["marker"]
@@ -72,7 +74,8 @@ def handler(event, context):
     "large": large, # [["key6",size],["key7",size]]
     "has_more": has_more,
     "marker": marker,
-    "total_group_count": total_group_count
+    "total_group_count": total_group_count,
+    "execution_name": evt.get("execution_name", "") + "-" + re.sub(r"[^a-zA-Z0-9-_]", "_", marker)
   }
 
 def get_oss_client(context, endpoint, bucket):

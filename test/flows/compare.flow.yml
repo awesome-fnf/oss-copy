@@ -1,0 +1,12 @@
+version: 'v1'
+type: flow
+steps:
+  - type: task
+    name: genFiles
+    resourceArn: !Ref OssCopyTest/genFiles
+  - type: wait
+    name: sleep
+    duration: 60
+  - type: task
+    name: compareFiles
+    resourceArn: !Ref OssCopyTest/compareFiles
