@@ -65,10 +65,10 @@
     * `OSSKeyPrefix`指定了源 Bucket 的某个路径，可以不指定。指定后，只有该路径下的文件才会被复制到目标 Bucket。
     * `OSSKeySuffix`指定了源 Bucket 的文件后缀，可以不指定。指定后，只有以此后缀结束的文件才会被复制到目标 Bucket。
     * `DestAccessRole` 指定了访问目标 Bucket 所需要的角色，只需要在跨账号复制场景下指定。如复制A账号的文件到B账号，该角色是由B提供，授权A账号写B账号 OSS 的权限。
-
+```
     fun package -b bucket-for-package-functions
     fun deploy --use-ros --stack-name oss-cp -p 'SrcBucket=hangzhouhangzhou' -p 'DestBucket=fc-code-1584293594287572-hangzhou' -p 'OSSKeyPrefix=test-copy1' -p 'OSSKeySuffix=' -p 'DestOssEndpoint=oss-cn-hangzhou-internal.aliyuncs.com' -p 'DestAccessRole=acs:ram::1584293594287572:role/oss-put`
-
+```
 2. 使用 ossutil 上传文件到源 Bucket，该文件会被同步到目的 Bucket。也可以通过控制台上传文件。
 
     ```ossutil -e http://oss-cn-hangzhou.aliyuncs.com -i ak -k secret  cp ~/Downloads/testfile oss://hangzhouhangzhou/test-copy1/```
